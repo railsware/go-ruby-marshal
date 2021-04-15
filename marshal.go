@@ -3,6 +3,7 @@ package rbmarshal
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"io"
 	"math/big"
 	"reflect"
@@ -312,10 +313,21 @@ func (e *Encoder) marshal(v interface{}) error {
 		e.w.WriteByte(FIXNUM_SIGN)
 		return e.encInt(int(val.Int()))
 	case reflect.String:
-		e.w.WriteByte(IVAR_SIGN)
 		return e.encString(val.String())
+	case reflect.Array, reflect.Slice:
+		e.w.WriteByte(ARRAY_SIGN)
+		err := e.encInt(val.Len())
+		if err != nil {
+			return err
+		}
+		for i := 0; i < val.Len(); i++ {
+			err := e.marshal(val.Index(i).Interface())
+			if err != nil {
+				return err
+			}
+		}
 	}
-	return nil
+	return fmt.Errorf("cannot marshal value of type %v", typ.Kind())
 }
 
 func (e *Encoder) encBool(val bool) error {
